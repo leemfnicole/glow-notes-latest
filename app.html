@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>glow notes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Tokens ─────────────────────────────────────────────── */
+    :root {
+      --bg-0:#2a0610;--bg-1:#4a0a18;--bg-2:#5e0d20;--bg-3:#722030;--bg-4:#8a2c40;
+      --line:rgba(255,230,218,.10);--line-s:rgba(255,230,218,.18);
+      --ink:#fef2ec;--ink-m:rgba(254,242,236,.66);--ink-f:rgba(254,242,236,.42);
+      --cream:#fbe1d6;--cream-2:#f3c8b6;--gold:#f4c95d;--rose:#ff9aa9;--plum:#a35a7a;
+      --r-sm:10px;--r-md:14px;--r-lg:20px;--r-xl:28px;--r-pill:999px;
+      --shadow-card:0 1px 0 rgba(255,255,255,.04) inset,0 24px 60px -30px rgba(0,0,0,.55);
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%}
+    body{background:var(--bg-1);color:var(--ink);font-family:'Geist',ui-sans-serif,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+    ::selection{background:var(--cream);color:var(--bg-1)}
+
+    /* ── Layout shell ───────────────────────────────────────── */
+    .shell{display:flex;height:100vh;background:radial-gradient(1400px 900px at 70% 0%,var(--bg-3),var(--bg-1) 65%);overflow:hidden;position:relative}
+    .aurora::before{content:'';position:fixed;inset:0;pointer-events:none;
+      background-image:radial-gradient(1200px 800px at 18% -10%,rgba(244,201,93,.06),transparent 60%),
+        radial-gradient(900px 700px at 110% 30%,rgba(255,154,169,.08),transparent 60%),
+        radial-gradient(700px 600px at 50% 120%,rgba(163,90,122,.10),transparent 60%);z-index:0}
+
+    /* ── Sidebar ────────────────────────────────────────────── */
+    .sidebar{width:240px;flex-shrink:0;background:rgba(0,0,0,.22);border-right:1px solid var(--line);
+      padding:22px 14px;display:flex;flex-direction:column;gap:4px;z-index:2;position:relative}
+    .wordmark-wrap{padding:4px 8px 22px}
+    .tagline{padding-left:44px;margin-top:3px;font-family:'Geist Mono',monospace;font-size:9px;
+      letter-spacing:.22em;text-transform:uppercase;color:var(--ink-f)}
+    .nav-links{display:flex;flex-direction:column;gap:2px}
+    .nav-link{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;
+      text-decoration:none;font-size:14px;font-weight:500;color:var(--ink-m);
+      background:transparent;border:none;cursor:pointer;transition:background .15s,color .15s;
+      font-family:'Geist',sans-serif;width:100%;text-align:left}
+    .nav-link:hover{color:var(--ink);background:rgba(255,255,255,.04)}
+    .nav-link.active{font-weight:600;color:#4a0a18;background:var(--cream)}
+    .nav-spacer{flex:1}
+    .nav-footer{padding:12px 4px 0;border-top:1px solid var(--line);font-family:'Geist Mono',monospace;
+      font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-f)}
+
+    /* ── Main ───────────────────────────────────────────────── */
+    .main{flex:1;overflow-y:auto;padding:36px 44px;position:relative;z-index:1}
+    .main::-webkit-scrollbar{width:8px}
+    .main::-webkit-scrollbar-thumb{background:rgba(255,255,255,.07);border-radius:999px}
+
+    /* ── Cards ──────────────────────────────────────────────── */
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));
+      border:1px solid var(--line-s);border-radius:var(--r-lg);box-shadow:var(--shadow-card)}
+    .card-flat{background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:var(--r-md)}
+
+    /* ── Typography ─────────────────────────────────────────── */
+    .serif{font-family:'Fraunces',serif;font-optical-sizing:auto;letter-spacing:-.01em}
+    .mono{font-family:'Geist Mono',monospace}
+    .eyebrow{font-family:'Geist Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-m)}
+
+    /* ── Buttons ────────────────────────────────────────────── */
+    .btn-cream{background:var(--cream);color:#4a0a18;border:1px solid #f9d4c2;border-radius:var(--r-pill);
+      font-family:'Geist',sans-serif;font-weight:600;cursor:pointer;
+      transition:transform .15s,box-shadow .2s,background .2s;
+      box-shadow:0 8px 24px -10px rgba(251,225,214,.45),inset 0 1px 0 #fff;
+      display:inline-flex;align-items:center;gap:6px;padding:10px 20px;font-size:13px}
+    .btn-cream:hover{background:#ffeadd;transform:translateY(-1px)}
+    .btn-ghost{background:rgba(255,255,255,.04);color:var(--ink);border:1px solid var(--line-s);
+      border-radius:var(--r-pill);font-family:'Geist',sans-serif;font-weight:500;cursor:pointer;
+      transition:background .15s;display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:13px}
+    .btn-ghost:hover{background:rgba(255,255,255,.08)}
+
+    /* ── Tabs ───────────────────────────────────────────────── */
+    .tabs{display:inline-flex;background:rgba(0,0,0,.22);border:1px solid var(--line);
+      border-radius:var(--r-pill);padding:4px;gap:2px}
+    .tab{padding:7px 16px;border-radius:var(--r-pill);font-size:13px;font-weight:500;
+      color:var(--ink-m);cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+      transition:background .15s,color .15s;border:none;background:transparent;font-family:'Geist',sans-serif}
+    .tab.active{background:var(--cream);color:#4a0a18;font-weight:600}
+
+    /* ── Step rows ──────────────────────────────────────────── */
+    .step-row{display:flex;align-items:center;gap:14px;padding:14px 18px;
+      border:1px solid var(--line-s);border-radius:18px;background:rgba(255,255,255,.03);transition:background .15s}
+    .step-row.done{opacity:.55}
+    .step-row.done .step-name{text-decoration:line-through}
+    .step-check{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line-s);
+      display:grid;place-items:center;cursor:pointer;flex-shrink:0;transition:background .15s,border-color .15s;
+      background:transparent}
+    .step-check.checked{background:var(--cream);border-color:var(--cream);color:#4a0a18}
+
+    /* ── Product cards ──────────────────────────────────────── */
+    .product-card{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));
+      border:1px solid var(--line-s);border-radius:18px;padding:14px;
+      display:flex;flex-direction:column;gap:12px;cursor:default;transition:transform .15s,border-color .15s}
+    .product-card:hover{transform:translateY(-2px);border-color:rgba(255,230,218,.28)}
+    .product-swatch{aspect-ratio:1;border-radius:14px;position:relative;
+      border:1px solid var(--line);overflow:hidden;display:flex;align-items:flex-end}
+
+    /* ── Day circles ────────────────────────────────────────── */
+    .day-circle{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
+      border:1px solid var(--line-s);color:var(--ink-m);font-size:12px;transition:all .2s}
+    .day-circle.done{background:var(--cream);color:#4a0a18;border-color:var(--cream)}
+    .day-circle.today{border-color:var(--gold);color:var(--gold);box-shadow:0 0 0 3px rgba(244,201,93,.12)}
+
+    /* ── Chip ───────────────────────────────────────────────── */
+    .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;
+      background:rgba(255,255,255,.04);border:1px solid var(--line-s);border-radius:999px;
+      color:var(--ink);font-size:12px;cursor:pointer;transition:background .15s;font-family:'Geist',sans-serif;border:none}
+    .chip:hover{background:rgba(255,255,255,.08)}
+    .chip.active{background:var(--cream);color:#4a0a18}
+
+    /* ── Chat ───────────────────────────────────────────────── */
+    .chat-root{display:flex;flex-direction:column;height:100%;max-width:880px;overflow:hidden}
+    .chat-header{display:flex;align-items:center;gap:14px;padding:20px 44px 18px;
+      border-bottom:1px solid var(--line);flex-shrink:0}
+    .chat-messages{flex:1;overflow-y:auto;padding:24px 44px;display:flex;flex-direction:column;gap:14px}
+    .chat-footer{padding:14px 44px 20px;border-top:1px solid var(--line);flex-shrink:0}
+    .chat-form{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.22);
+      border:1px solid var(--line-s);border-radius:999px;padding:6px 6px 6px 18px}
+    .chat-input{flex:1;background:transparent;border:none;color:var(--ink);font-size:14px;
+      font-family:'Geist',sans-serif;outline:none;padding:6px 0}
+    .chat-input::placeholder{color:var(--ink-f)}
+    .send-btn{width:36px;height:36px;border-radius:50%;border:none;background:rgba(255,255,255,.08);
+      color:var(--ink-f);cursor:pointer;display:grid;place-items:center;flex-shrink:0;transition:background .15s,color .15s}
+    .send-btn.active{background:var(--cream);color:#4a0a18}
+    .bubble-row{display:flex;align-items:flex-end;gap:10px}
+    .bubble-row.user{flex-direction:row-reverse}
+    .bubble{border-radius:18px;padding:13px 17px;line-height:1.55;border:1px solid var(--line-s);font-size:14px}
+    .bubble.ai{background:rgba(255,255,255,.04);border-radius:18px 18px 18px 4px}
+    .bubble.user{background:var(--cream);color:#4a0a18;border-radius:18px 18px 4px 18px;border-color:var(--cream)}
+    .bubble-avatar{width:28px;height:28px;border-radius:50%;background:rgba(244,201,93,.12);
+      display:grid;place-items:center;font-size:13px;flex-shrink:0}
+
+    /* ── Input ──────────────────────────────────────────────── */
+    .gn-input{width:100%;background:rgba(0,0,0,.20);border:1px solid var(--line-s);border-radius:12px;
+      padding:12px 14px;color:var(--ink);font-family:'Geist',sans-serif;font-size:14px;outline:none;transition:border-color .15s}
+    .gn-input::placeholder{color:var(--ink-f)}
+    .gn-input:focus{border-color:var(--cream-2)}
+    textarea.gn-input{resize:vertical;min-height:80px}
+
+    /* ── Fade in ────────────────────────────────────────────── */
+    .fade-in{animation:fadeIn .35s ease both}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+    /* ── Mobile top bar ─────────────────────────────────────── */
+    .mobile-bar{display:none;position:fixed;top:0;left:0;right:0;height:56px;
+      background:rgba(42,6,16,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--line);
+      align-items:center;justify-content:space-between;padding:0 16px;z-index:100}
+    .hamburger{background:none;border:none;color:var(--ink);cursor:pointer;padding:6px;display:flex;align-items:center}
+    .drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200}
+    .drawer{position:fixed;top:0;left:0;bottom:0;width:260px;background:rgba(42,6,16,.97);
+      backdrop-filter:blur(24px);border-right:1px solid var(--line);padding:22px 14px;
+      display:flex;flex-direction:column;gap:4px;z-index:300;transform:translateX(-100%);
+      transition:transform .25s cubic-bezier(.4,0,.2,1)}
+    .drawer.open{transform:translateX(0)}
+    .drawer-header{display:flex;align-items:center;justify-content:space-between;padding:4px 8px 22px}
+    .close-btn{background:none;border:none;color:var(--ink-m);cursor:pointer;padding:4px}
+
+    /* ── Wishlist badge ─────────────────────────────────────── */
+    .badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;font-size:11px;
+      font-weight:600;letter-spacing:.02em}
+    .badge-want{background:rgba(244,201,93,.18);color:var(--gold)}
+    .badge-bought{background:rgba(125,210,140,.18);color:#7dd28c}
+
+    /* ── Rating stars ───────────────────────────────────────── */
+    .stars{display:flex;gap:3px;color:var(--gold);font-size:13px}
+
+    /* ── Responsive ─────────────────────────────────────────── */
+    @media(max-width:768px){
+      .sidebar{display:none}
+      .mobile-bar{display:flex}
+      .main{padding:72px 16px 24px}
+      .page-title{font-size:26px!important}
+      .grid-top{grid-template-columns:1fr!important}
+      .grid-quick{grid-template-columns:1fr 1fr!important}
+      .grid-stash{grid-template-columns:repeat(2,1fr)!important}
+      .chat-header{padding:14px 16px 12px!important}
+      .chat-messages{padding:14px!important}
+      .chat-footer{padding:10px 14px 14px!important}
+      .main.is-chat{padding:0!important}
+      .chat-root{height:calc(100vh - 56px);margin-top:56px}
+    }
+    @media(max-width:480px){
+      .grid-stash{grid-template-columns:1fr!important}
+      .grid-quick{grid-template-columns:1fr!important}
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+/* ── Mock data ────────────────────────────────────────────── */
+const MOCK_PRODUCTS = [
+  { id:1, name:'Ceramidin Cream', brand:'Dr. Jart+', category:'Moisturiser', rating:5, review:'Holy grail barrier cream.', color:'#b5d4e0' },
+  { id:2, name:'Cicapair Tiger Grass', brand:'Dr. Jart+', category:'Serum', rating:4, review:'Great for redness.', color:'#c8dbb5' },
+  { id:3, name:'Peptide 21 Serum', brand:'Peter Thomas Roth', category:'Serum', rating:4, review:'Plumping overnight.', color:'#e0c9a6' },
+  { id:4, name:'Protini Polypeptide Cream', brand:'Drunk Elephant', category:'Moisturiser', rating:5, review:'Skin loves this.', color:'#d9bfce' },
+];
+const MOCK_ROUTINE = [
+  { id:1, name:'Gentle Cleanser', desc:'Double cleanse — oil first, then foam', duration:'2 min' },
+  { id:2, name:'Toner / Essence', desc:'Pat in 3 layers for deep hydration', duration:'1 min' },
+  { id:3, name:'Vitamin C Serum', desc:'Morning only — brightens and protects', duration:'30 sec' },
+  { id:4, name:'Eye Cream', desc:'Tap gently around the orbital bone', duration:'30 sec' },
+  { id:5, name:'Moisturiser', desc:'Lock in all the layers below', duration:'1 min' },
+  { id:6, name:'SPF 50+', desc:'Last step, every single morning', duration:'1 min' },
+];
+const MOCK_WISHLIST = [
+  { id:1, name:'La Mer Crème', brand:'La Mer', status:'want', priority:'high', notes:'For winter dryness' },
+  { id:2, name:'Tatcha Dewy Skin Cream', brand:'Tatcha', status:'want', priority:'mid', notes:'' },
+  { id:3, name:'Laneige Water Sleeping Mask', brand:'Laneige', status:'bought', priority:'mid', notes:'Already amazing' },
+  { id:4, name:'Summer Fridays Jet Lag Mask', brand:'Summer Fridays', status:'bought', priority:'low', notes:'' },
+];
+const SKIN_TYPES = ['Normal','Oily','Dry','Combination','Sensitive'];
+const DAYS = ['M','T','W','T','F','S','S'];
+
+/* ── Wordmark ─────────────────────────────────────────────── */
+function Wordmark() {
+  return (
+    <svg width="140" height="26" viewBox="0 0 224 40" fill="none">
+      <defs>
+        <radialGradient id="wm-pearl" cx="0.4" cy="0.35" r="0.7">
+          <stop offset="0%" stopColor="#fff4ef"/>
+          <stop offset="50%" stopColor="#fbd9d3"/>
+          <stop offset="100%" stopColor="#c47a82"/>
+        </radialGradient>
+      </defs>
+      <path d="M 5 21 C 4 13, 11 6, 21 5 C 30 5, 36 11, 36 20 C 36 28, 29 35, 20 35 C 11 35, 6 29, 5 21 Z"
+        fill="none" stroke="rgba(255,235,224,0.45)" strokeWidth="0.9" strokeLinecap="round"/>
+      <ellipse cx="20" cy="20" rx="11" ry="10" fill="url(#wm-pearl)"/>
+      <path d="M14 15 Q 17 10 24 11" stroke="#fff8f4" strokeWidth="1.2" strokeLinecap="round" fill="none" opacity="0.85"/>
+      <text x="46" y="27" fontFamily="Fraunces, serif" fontWeight="600" fontSize="22" letterSpacing="-0.5" fill="currentColor">glow</text>
+      <text x="99" y="27" fontFamily="Fraunces, serif" fontStyle="italic" fontWeight="500" fontSize="22" letterSpacing="-0.5" fill="currentColor" opacity="0.82">notes</text>
+    </svg>
+  );
+}
+
+/* ── Icons ─────────────────────────────────────────────────── */
+const I = ({ d, size=18, sw=1.6 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+    {d.map((p,i) => p.startsWith('C') ? <circle key={i} cx={p.split(',')[1]} cy={p.split(',')[2]} r={p.split(',')[3]}/> : <path key={i} d={p}/>)}
+  </svg>
+);
+const HomeIcon     = ({active}) => <I d={["M3 11.5 12 4l9 7.5","M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"]} sw={active?2:1.6}/>;
+const ChatIcon     = ({active}) => <I d={["M21 12a8 8 0 0 1-11.5 7.2L4 21l1.8-5.5A8 8 0 1 1 21 12Z"]} sw={active?2:1.6}/>;
+const RoutinesIcon = ({active}) => <I d={["M8 6h12","M8 12h12","M8 18h12","C,4,6,1.5","C,4,12,1.5","C,4,18,1.5"]} sw={active?2:1.6}/>;
+const StashIcon    = ({active}) => <I d={["M3 7.5 12 3l9 4.5v9L12 21 3 16.5z","m3 7.5 9 4.5 9-4.5","M12 12v9"]} sw={active?2:1.6}/>;
+const WishlistIcon = ({active}) => <I d={["M19 21 12 16l-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"]} sw={active?2:1.6}/>;
+const ProfileIcon  = ({active}) => <I d={["C,12,8,4","M4 21a8 8 0 0 1 16 0"]} sw={active?2:1.6}/>;
+const CheckIcon    = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6 9 17l-5-5"/></svg>;
+const SendIcon     = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 2 11 13M22 2 15 22l-4-9-9-4 20-7z"/></svg>;
+const SparkleIcon  = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round"><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>;
+const PlusIcon     = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>;
+
+const NAV = [
+  { id:'home',     label:'Home',      Icon:HomeIcon },
+  { id:'chat',     label:'Concierge', Icon:ChatIcon },
+  { id:'routines', label:'Routines',  Icon:RoutinesIcon },
+  { id:'stash',    label:'Stash',     Icon:StashIcon },
+  { id:'wishlist', label:'Wishlist',  Icon:WishlistIcon },
+  { id:'profile',  label:'Profile',   Icon:ProfileIcon },
+];
+
+/* ── Nav links shared ─────────────────────────────────────── */
+function NavLinks({ page, setPage, onClick }) {
+  return (
+    <div className="nav-links">
+      {NAV.map(({ id, label, Icon }) => {
+        const active = page === id;
+        return (
+          <button key={id} className={`nav-link ${active?'active':''}`}
+            onClick={() => { setPage(id); onClick?.(); }}>
+            <Icon active={active} />
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Shell / layout ───────────────────────────────────────── */
+function Shell({ page, setPage, children }) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  return (
+    <div className="shell aurora">
+      {/* Desktop sidebar */}
+      <nav className="sidebar">
+        <div className="wordmark-wrap">
+          <Wordmark />
+          <div className="tagline">SKIN CONCIERGE</div>
+        </div>
+        <NavLinks page={page} setPage={setPage} />
+        <div className="nav-spacer" />
+        <div className="nav-footer">POWERED BY CLAUDE</div>
+      </nav>
+
+      {/* Mobile top bar */}
+      <div className="mobile-bar">
+        <Wordmark />
+        <button className="hamburger" onClick={() => setDrawerOpen(true)} aria-label="Menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="3" y1="7" x2="21" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="17" x2="21" y2="17"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Drawer overlay */}
+      {drawerOpen && <div className="drawer-overlay" style={{display:'block'}} onClick={() => setDrawerOpen(false)} />}
+
+      {/* Drawer */}
+      <div className={`drawer ${drawerOpen?'open':''}`}>
+        <div className="drawer-header">
+          <Wordmark />
+          <button className="close-btn" onClick={() => setDrawerOpen(false)} aria-label="Close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <NavLinks page={page} setPage={setPage} onClick={() => setDrawerOpen(false)} />
+        <div className="nav-spacer" />
+        <div className="nav-footer">POWERED BY CLAUDE</div>
+      </div>
+
+      {/* Main */}
+      <main className={`main ${page==='chat'?'is-chat':''}`}>
+        {children}
+      </main>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HOME PAGE
+══════════════════════════════════════════════════════════════ */
+function MetricBar({ label, value, color }) {
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+      <div style={{ fontSize:11, color:'var(--ink-m)', width:58, flexShrink:0 }}>{label}</div>
+      <div style={{ flex:1, height:4, background:'rgba(255,255,255,.08)', borderRadius:2, overflow:'hidden' }}>
+        <div style={{ width:`${value}%`, height:'100%', background:color, borderRadius:2, transition:'width .8s cubic-bezier(.2,.8,.2,1)' }} />
+      </div>
+      <div style={{ fontSize:11, color:'var(--ink-f)', width:24, textAlign:'right' }}>{value}</div>
+    </div>
+  );
+}
+
+function GlowIndexCard() {
+  const score=78, delta=3, r=52, C=2*Math.PI*r, off=C-(C*score)/100;
+  return (
+    <div className="card" style={{ padding:22, display:'flex', alignItems:'center', gap:16 }}>
+      <div style={{ position:'relative', width:120, height:120, flexShrink:0 }}>
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r={r} stroke="rgba(255,255,255,.10)" strokeWidth="5" fill="none"/>
+          <circle cx="60" cy="60" r={r} stroke="var(--cream)" strokeWidth="5" fill="none"
+            strokeDasharray={C} strokeDashoffset={off} strokeLinecap="round" transform="rotate(-90 60 60)"
+            style={{ transition:'stroke-dashoffset .8s cubic-bezier(.2,.8,.2,1)' }}/>
+        </svg>
+        <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
+          <div className="serif" style={{ fontSize:34, fontWeight:600, lineHeight:1 }}>{score}</div>
+          <div className="eyebrow" style={{ fontSize:9, marginTop:4 }}>GLOW INDEX</div>
+        </div>
+      </div>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div className="eyebrow" style={{ marginBottom:6 }}>HEALTH SNAPSHOT</div>
+        <div className="serif" style={{ fontSize:17, fontWeight:600, marginBottom:10, lineHeight:1.2 }}>Hydration's holding.</div>
+        <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+          <MetricBar label="Hydration" value={82} color="var(--cream)" />
+          <MetricBar label="Barrier"   value={74} color="var(--cream-2)" />
+          <MetricBar label="Calm"      value={68} color="var(--rose)" />
+        </div>
+        <div style={{ marginTop:10, fontSize:11, color:'var(--gold)', display:'inline-flex', alignItems:'center', gap:4 }}>
+          ↗ +{delta} this week
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StreakCard() {
+  const streakCount = 4;
+  const streakDays  = [true, true, true, true, false, false, false];
+  const todayIdx = new Date().getDay(); // 0=Sun
+  const dayOrder = [1,2,3,4,5,6,0];
+  return (
+    <div className="card" style={{ padding:22 }}>
+      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:16 }}>
+        <div>
+          <div className="eyebrow" style={{ marginBottom:4 }}>STREAK</div>
+          <div style={{ display:'flex', alignItems:'baseline', gap:6 }}>
+            <span className="serif" style={{ fontSize:38, fontWeight:600, lineHeight:1 }}>{streakCount}</span>
+            <span style={{ fontSize:13, color:'var(--ink-m)' }}>day{streakCount!==1?'s':''}</span>
+          </div>
+        </div>
+        <div style={{ fontSize:28 }}>🔥</div>
+      </div>
+      <div style={{ display:'flex', gap:6 }}>
+        {dayOrder.map((dayOfWeek, i) => {
+          const diff = (todayIdx - dayOfWeek + 7) % 7;
+          const done = streakDays[diff] ?? false;
+          const isToday = dayOfWeek === todayIdx;
+          return (
+            <div key={i} className={`day-circle ${done?'done':''} ${isToday&&!done?'today':''}`}>
+              {DAYS[i]}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ marginTop:14, fontSize:12, color:'var(--ink-m)' }}>
+        {streakCount > 0 ? `${streakCount} days in a row — keep it going!` : 'Start your streak today.'}
+      </div>
+    </div>
+  );
+}
+
+function QuickCard({ icon, title, sub, onClick }) {
+  return (
+    <button onClick={onClick} className="card-flat" style={{
+      padding:'16px 18px', display:'flex', alignItems:'center', gap:14,
+      cursor:'pointer', transition:'background .15s, border-color .15s', border:'1px solid var(--line)',
+      borderRadius:'var(--r-md)', background:'rgba(255,255,255,.025)', width:'100%', textAlign:'left',
+    }}
+      onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,.05)'}
+      onMouseLeave={e => e.currentTarget.style.background='rgba(255,255,255,.025)'}
+    >
+      <div style={{ width:40, height:40, borderRadius:10, background:'rgba(255,255,255,.06)', border:'1px solid var(--line-s)', display:'grid', placeItems:'center', flexShrink:0, color:'var(--ink-m)' }}>
+        {icon}
+      </div>
+      <div>
+        <div style={{ fontWeight:600, fontSize:14, color:'var(--ink)' }}>{title}</div>
+        <div style={{ fontSize:12, color:'var(--ink-m)', marginTop:2 }}>{sub}</div>
+      </div>
+    </button>
+  );
+}
+
+function HomePage({ setPage }) {
+  const now = new Date();
+  const hour = now.getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const dayStr = now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' }).toUpperCase();
+
+  return (
+    <div className="fade-in" style={{ maxWidth:880 }}>
+      <div className="eyebrow" style={{ marginBottom:6 }}>{dayStr}</div>
+      <h1 className="serif page-title" style={{ fontSize:38, fontWeight:600, lineHeight:1.05, letterSpacing:'-0.02em', display:'flex', alignItems:'center', gap:10 }}>
+        {greeting} <SparkleIcon />
+      </h1>
+      <p style={{ color:'var(--ink-m)', marginTop:8, marginBottom:28, fontSize:14 }}>
+        Your skin's been showing up. Here's where it stands.
+      </p>
+
+      <div className="grid-top" style={{ display:'grid', gridTemplateColumns:'1.1fr 1.4fr', gap:18, marginBottom:18 }}>
+        <GlowIndexCard />
+        <StreakCard />
+      </div>
+
+      <div className="grid-quick" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:18 }}>
+        <QuickCard icon={<ChatIcon />}     title="Skin Concierge"  sub="Chat with your AI advisor"            onClick={() => setPage('chat')} />
+        <QuickCard icon={<StashIcon />}    title="My Stash"        sub={`${MOCK_PRODUCTS.length} products tracked`} onClick={() => setPage('stash')} />
+        <QuickCard icon={<WishlistIcon />} title="Wishlist"        sub="Products to try"                       onClick={() => setPage('wishlist')} />
+        <QuickCard icon={<ProfileIcon />}  title="Profile"         sub="Your skin settings"                    onClick={() => setPage('profile')} />
+      </div>
+
+      <div className="card" style={{ padding:22, display:'flex', gap:16, alignItems:'flex-start' }}>
+        <div style={{ width:44, height:44, borderRadius:12, background:'rgba(244,201,93,.10)', border:'1px solid rgba(244,201,93,.25)', display:'grid', placeItems:'center', flexShrink:0 }}>
+          <SparkleIcon />
+        </div>
+        <div>
+          <div className="eyebrow" style={{ marginBottom:6 }}>TODAY'S NOTE</div>
+          <div className="serif" style={{ fontSize:17, fontWeight:500, lineHeight:1.4, marginBottom:4 }}>
+            Apply SPF as the last step — and reapply every 2 hours if you're heading outside.
+          </div>
+          <div style={{ fontSize:12, color:'var(--ink-f)' }}>Based on your routine log</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CHAT PAGE
+══════════════════════════════════════════════════════════════ */
+function ChatPage() {
+  const [messages, setMessages] = useState([
+    { role:'ai', text:"Hi! I'm your skin concierge. Ask me anything about your routine, ingredients, or skin concerns ✨" }
+  ]);
+  const [input, setInput] = useState('');
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior:'smooth' }); }, [messages]);
+
+  const send = () => {
+    if (!input.trim()) return;
+    const userMsg = input.trim();
+    setInput('');
+    setMessages(m => [...m, { role:'user', text:userMsg }]);
+    setTimeout(() => {
+      setMessages(m => [...m, { role:'ai', text:"I'd love to help with that! The AI concierge will be fully available once the app is deployed. In the meantime, feel free to explore your routines and stash 💫" }]);
+    }, 800);
+  };
+
+  return (
+    <div className="chat-root">
+      <div className="chat-header">
+        <div style={{ width:44, height:44, borderRadius:'50%', background:'rgba(244,201,93,.12)', border:'1px solid rgba(244,201,93,.28)', display:'grid', placeItems:'center', fontSize:20, flexShrink:0 }}>✨</div>
+        <div>
+          <div className="serif" style={{ fontSize:22, fontWeight:600 }}>Skin Concierge</div>
+          <div style={{ fontSize:12, color:'var(--ink-m)', marginTop:1 }}>Powered by Claude · Your personal skin advisor</div>
+        </div>
+        <div style={{ marginLeft:'auto', fontFamily:"'Geist Mono',monospace", fontSize:11, color:'var(--ink-f)', display:'flex', alignItems:'center', gap:6 }}>
+          <div style={{ width:6, height:6, borderRadius:'50%', background:'#7ad888' }} /> ONLINE
+        </div>
+      </div>
+
+      <div className="chat-messages">
+        {messages.map((m, i) => (
+          <div key={i} className={`bubble-row ${m.role}`}>
+            {m.role === 'ai' && <div className="bubble-avatar">✨</div>}
+            <div className={`bubble ${m.role}`} style={{ maxWidth:'72%' }}>{m.text}</div>
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="chat-footer">
+        <div className="chat-form">
+          <input className="chat-input" placeholder="Ask about your skin, routine, or products…"
+            value={input} onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), send())} />
+          <button className={`send-btn ${input.trim()?'active':''}`} onClick={send}><SendIcon /></button>
+        </div>
+        <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.2em', textTransform:'uppercase', color:'var(--ink-f)', textAlign:'center', marginTop:8 }}>
+          POWERED BY CLAUDE
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ROUTINES PAGE
+══════════════════════════════════════════════════════════════ */
+function RoutinesPage() {
+  const [type, setType] = useState('morning');
+  const [completed, setCompleted] = useState({});
+
+  const toggle = (id) => setCompleted(c => ({ ...c, [id]: !c[id] }));
+  const doneCount = MOCK_ROUTINE.filter(s => completed[s.id]).length;
+
+  return (
+    <div className="fade-in" style={{ maxWidth:720 }}>
+      <h1 className="serif page-title" style={{ fontSize:38, fontWeight:600, letterSpacing:'-0.02em' }}>My Routines</h1>
+      <p style={{ color:'var(--ink-m)', marginTop:8, marginBottom:22, fontSize:14 }}>
+        Track your daily steps. Tap to check off as you go.
+      </p>
+
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:22, flexWrap:'wrap', gap:10 }}>
+        <div className="tabs">
+          <button className={`tab ${type==='morning'?'active':''}`} onClick={() => { setType('morning'); setCompleted({}); }}>☀️ Morning</button>
+          <button className={`tab ${type==='evening'?'active':''}`} onClick={() => { setType('evening'); setCompleted({}); }}>🌙 Evening</button>
+        </div>
+        <div style={{ fontSize:12, color:'var(--ink-m)' }}>{doneCount} / {MOCK_ROUTINE.length} done</div>
+      </div>
+
+      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+        {MOCK_ROUTINE.map((step, i) => {
+          const done = !!completed[step.id];
+          return (
+            <div key={step.id} className={`step-row ${done?'done':''}`} style={{ animationDelay:`${i*0.05}s` }}>
+              <button className={`step-check ${done?'checked':''}`} onClick={() => toggle(step.id)}>
+                {done && <CheckIcon />}
+              </button>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div className="step-name" style={{ fontWeight:600, fontSize:14 }}>{step.name}</div>
+                <div style={{ fontSize:12, color:'var(--ink-m)', marginTop:2 }}>{step.desc}</div>
+              </div>
+              <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'var(--ink-f)', flexShrink:0 }}>{step.duration}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {doneCount === MOCK_ROUTINE.length && (
+        <div className="card" style={{ padding:20, marginTop:20, textAlign:'center' }}>
+          <div style={{ fontSize:28, marginBottom:8 }}>🎉</div>
+          <div className="serif" style={{ fontSize:17, fontWeight:600 }}>Routine complete!</div>
+          <div style={{ fontSize:13, color:'var(--ink-m)', marginTop:4 }}>Your skin will thank you.</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   STASH PAGE
+══════════════════════════════════════════════════════════════ */
+function StashPage() {
+  const [products, setProducts] = useState(MOCK_PRODUCTS);
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState({ name:'', brand:'', category:'', rating:5, review:'' });
+
+  const add = () => {
+    if (!form.name.trim()) return;
+    setProducts(p => [...p, { ...form, id: Date.now(), color:'#c4a8c0' }]);
+    setForm({ name:'', brand:'', category:'', rating:5, review:'' });
+    setShowModal(false);
+  };
+
+  const del = (id) => setProducts(p => p.filter(x => x.id !== id));
+
+  return (
+    <div className="fade-in" style={{ maxWidth:1000 }}>
+      <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', marginBottom:22, flexWrap:'wrap', gap:10 }}>
+        <div>
+          <h1 className="serif page-title" style={{ fontSize:38, fontWeight:600, letterSpacing:'-0.02em' }}>My Stash</h1>
+          <p style={{ color:'var(--ink-m)', marginTop:6, fontSize:14 }}>{products.length} product{products.length!==1?'s':''} tracked</p>
+        </div>
+        <button className="btn-cream" onClick={() => setShowModal(true)}>
+          <PlusIcon /> Add Product
+        </button>
+      </div>
+
+      {products.length === 0 ? (
+        <div className="card" style={{ textAlign:'center', padding:'60px 24px' }}>
+          <div style={{ fontSize:13, color:'var(--ink-f)' }}>No products yet. Add your first one!</div>
+        </div>
+      ) : (
+        <div className="grid-stash" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16 }}>
+          {products.map(p => (
+            <div key={p.id} className="product-card">
+              <div className="product-swatch" style={{ background:`linear-gradient(135deg, ${p.color}33, ${p.color}66)` }}>
+                <div style={{ position:'absolute', top:10, right:10 }}>
+                  <button onClick={() => del(p.id)} style={{ background:'rgba(0,0,0,.4)', border:'none', borderRadius:'50%', width:24, height:24, display:'grid', placeItems:'center', cursor:'pointer', color:'rgba(255,255,255,.7)', fontSize:12 }}>✕</button>
+                </div>
+              </div>
+              {p.brand && <div className="eyebrow" style={{ fontSize:9 }}>{p.brand}</div>}
+              <div className="serif" style={{ fontSize:15, fontWeight:600, lineHeight:1.2 }}>{p.name}</div>
+              {p.rating > 0 && (
+                <div className="stars">{'★'.repeat(p.rating)}{'☆'.repeat(5-p.rating)}</div>
+              )}
+              {p.review && <div style={{ fontSize:12, color:'var(--ink-m)', lineHeight:1.4 }}>{p.review}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal */}
+      {showModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:500, padding:24 }}
+          onClick={e => e.target === e.currentTarget && setShowModal(false)}>
+          <div className="card" style={{ width:'100%', maxWidth:440, padding:24 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+              <div className="serif" style={{ fontSize:20, fontWeight:600 }}>Add Product</div>
+              <button onClick={() => setShowModal(false)} style={{ background:'none', border:'none', color:'var(--ink-m)', cursor:'pointer', fontSize:20 }}>✕</button>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+              <input className="gn-input" placeholder="Product name *" value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} />
+              <input className="gn-input" placeholder="Brand" value={form.brand} onChange={e => setForm(f => ({...f, brand:e.target.value}))} />
+              <input className="gn-input" placeholder="Category (e.g. Serum, Moisturiser)" value={form.category} onChange={e => setForm(f => ({...f, category:e.target.value}))} />
+              <textarea className="gn-input" placeholder="Your review…" value={form.review} onChange={e => setForm(f => ({...f, review:e.target.value}))} />
+              <div>
+                <div style={{ fontSize:12, color:'var(--ink-m)', marginBottom:8, letterSpacing:'0.5px', textTransform:'uppercase', fontFamily:"'Geist Mono',monospace" }}>RATING</div>
+                <div style={{ display:'flex', gap:6 }}>
+                  {[1,2,3,4,5].map(n => (
+                    <button key={n} onClick={() => setForm(f => ({...f, rating:n}))}
+                      style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, color: n <= form.rating ? 'var(--gold)' : 'rgba(255,255,255,.2)' }}>★</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:10, marginTop:20 }}>
+              <button className="btn-ghost" style={{ flex:1, justifyContent:'center' }} onClick={() => setShowModal(false)}>Cancel</button>
+              <button className="btn-cream" style={{ flex:1, justifyContent:'center' }} onClick={add}>Add to Stash</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   WISHLIST PAGE
+══════════════════════════════════════════════════════════════ */
+function WishlistPage() {
+  const [items, setItems] = useState(MOCK_WISHLIST);
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState({ name:'', brand:'', notes:'' });
+
+  const add = () => {
+    if (!form.name.trim()) return;
+    setItems(i => [...i, { ...form, id:Date.now(), status:'want', priority:'mid' }]);
+    setForm({ name:'', brand:'', notes:'' });
+    setShowModal(false);
+  };
+
+  const toggleBought = (id) => setItems(i => i.map(x => x.id===id ? {...x, status:x.status==='want'?'bought':'want'} : x));
+  const del = (id) => setItems(i => i.filter(x => x.id !== id));
+
+  const want   = items.filter(x => x.status==='want');
+  const bought = items.filter(x => x.status==='bought');
+
+  return (
+    <div className="fade-in" style={{ maxWidth:760 }}>
+      <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', marginBottom:22, flexWrap:'wrap', gap:10 }}>
+        <div>
+          <h1 className="serif page-title" style={{ fontSize:38, fontWeight:600, letterSpacing:'-0.02em' }}>Wishlist</h1>
+          <p style={{ color:'var(--ink-m)', marginTop:6, fontSize:14 }}>{want.length} to try · {bought.length} bought</p>
+        </div>
+        <button className="btn-cream" onClick={() => setShowModal(true)}>
+          <PlusIcon /> Add Item
+        </button>
+      </div>
+
+      {[{ label:'WANT TO TRY', data:want }, { label:'BOUGHT', data:bought }].map(({ label, data }) => data.length > 0 && (
+        <div key={label} style={{ marginBottom:28 }}>
+          <div className="eyebrow" style={{ marginBottom:12 }}>{label}</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {data.map(item => (
+              <div key={item.id} className="card-flat" style={{ padding:'14px 18px', display:'flex', alignItems:'center', gap:14 }}>
+                <button onClick={() => toggleBought(item.id)}
+                  className={`step-check ${item.status==='bought'?'checked':''}`}>
+                  {item.status==='bought' && <CheckIcon />}
+                </button>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:600, fontSize:14, textDecoration:item.status==='bought'?'line-through':'none', color:item.status==='bought'?'var(--ink-m)':'var(--ink)' }}>{item.name}</div>
+                  {item.brand && <div style={{ fontSize:12, color:'var(--ink-m)', marginTop:1 }}>{item.brand}</div>}
+                  {item.notes && <div style={{ fontSize:12, color:'var(--ink-f)', marginTop:2 }}>{item.notes}</div>}
+                </div>
+                <span className={`badge ${item.status==='want'?'badge-want':'badge-bought'}`}>
+                  {item.status==='want'?'Want':'Bought'}
+                </span>
+                <button onClick={() => del(item.id)} style={{ background:'none', border:'none', color:'var(--ink-f)', cursor:'pointer', fontSize:16, padding:4 }}>✕</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {items.length === 0 && (
+        <div className="card" style={{ textAlign:'center', padding:'60px 24px' }}>
+          <div style={{ fontSize:13, color:'var(--ink-f)' }}>Your wishlist is empty. Add something to try!</div>
+        </div>
+      )}
+
+      {showModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:500, padding:24 }}
+          onClick={e => e.target === e.currentTarget && setShowModal(false)}>
+          <div className="card" style={{ width:'100%', maxWidth:400, padding:24 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+              <div className="serif" style={{ fontSize:20, fontWeight:600 }}>Add to Wishlist</div>
+              <button onClick={() => setShowModal(false)} style={{ background:'none', border:'none', color:'var(--ink-m)', cursor:'pointer', fontSize:20 }}>✕</button>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+              <input className="gn-input" placeholder="Product name *" value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} />
+              <input className="gn-input" placeholder="Brand" value={form.brand} onChange={e => setForm(f => ({...f, brand:e.target.value}))} />
+              <input className="gn-input" placeholder="Notes (optional)" value={form.notes} onChange={e => setForm(f => ({...f, notes:e.target.value}))} />
+            </div>
+            <div style={{ display:'flex', gap:10, marginTop:20 }}>
+              <button className="btn-ghost" style={{ flex:1, justifyContent:'center' }} onClick={() => setShowModal(false)}>Cancel</button>
+              <button className="btn-cream" style={{ flex:1, justifyContent:'center' }} onClick={add}>Add Item</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PROFILE PAGE
+══════════════════════════════════════════════════════════════ */
+function ProfilePage() {
+  const [skinType, setSkinType] = useState('Combination');
+  const [concerns, setConcerns] = useState(['Hydration', 'Redness']);
+  const CONCERNS = ['Hydration','Acne','Redness','Anti-aging','Brightening','Sensitivity','Oiliness','Texture'];
+
+  const toggleConcern = (c) => setConcerns(cs => cs.includes(c) ? cs.filter(x => x!==c) : [...cs, c]);
+
+  return (
+    <div className="fade-in" style={{ maxWidth:640 }}>
+      <div style={{ marginBottom:28 }}>
+        <h1 className="serif page-title" style={{ fontSize:38, fontWeight:600, letterSpacing:'-0.02em' }}>Profile</h1>
+      </div>
+
+      {/* Avatar */}
+      <div className="card" style={{ padding:24, display:'flex', alignItems:'center', gap:18, marginBottom:18 }}>
+        <div style={{ width:68, height:68, borderRadius:'50%', background:'linear-gradient(135deg, var(--bg-3), var(--plum))', display:'grid', placeItems:'center', fontSize:28, flexShrink:0, border:'2px solid var(--line-s)' }}>
+          🌸
+        </div>
+        <div>
+          <div className="serif" style={{ fontSize:22, fontWeight:600 }}>Nicole</div>
+          <div style={{ fontSize:13, color:'var(--ink-m)', marginTop:2 }}>nicole@example.com</div>
+        </div>
+      </div>
+
+      {/* Skin type */}
+      <div className="card" style={{ padding:22, marginBottom:18 }}>
+        <div className="eyebrow" style={{ marginBottom:14 }}>SKIN TYPE</div>
+        <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+          {SKIN_TYPES.map(t => (
+            <button key={t} className={`chip ${skinType===t?'active':''}`} onClick={() => setSkinType(t)}
+              style={{ border: skinType===t ? 'none' : '1px solid var(--line-s)', cursor:'pointer' }}>
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Concerns */}
+      <div className="card" style={{ padding:22, marginBottom:18 }}>
+        <div className="eyebrow" style={{ marginBottom:14 }}>SKIN CONCERNS</div>
+        <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+          {CONCERNS.map(c => (
+            <button key={c} className={`chip ${concerns.includes(c)?'active':''}`} onClick={() => toggleConcern(c)}
+              style={{ border: concerns.includes(c) ? 'none' : '1px solid var(--line-s)', cursor:'pointer' }}>
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="card" style={{ padding:22 }}>
+        <div className="eyebrow" style={{ marginBottom:14 }}>YOUR STATS</div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14 }}>
+          {[
+            { label:'Products', value: MOCK_PRODUCTS.length },
+            { label:'Wishlist',  value: MOCK_WISHLIST.length },
+            { label:'Day Streak', value: '4 🔥' },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ textAlign:'center', padding:'14px 8px', background:'rgba(255,255,255,.03)', borderRadius:12, border:'1px solid var(--line)' }}>
+              <div className="serif" style={{ fontSize:26, fontWeight:600, lineHeight:1 }}>{value}</div>
+              <div style={{ fontSize:11, color:'var(--ink-m)', marginTop:4 }}>{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   APP ROOT
+══════════════════════════════════════════════════════════════ */
+function App() {
+  const [page, setPage] = useState('home');
+
+  const content = {
+    home:     <HomePage setPage={setPage} />,
+    chat:     <ChatPage />,
+    routines: <RoutinesPage />,
+    stash:    <StashPage />,
+    wishlist: <WishlistPage />,
+    profile:  <ProfilePage />,
+  };
+
+  return (
+    <Shell page={page} setPage={setPage}>
+      {content[page]}
+    </Shell>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
