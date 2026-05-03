@@ -126,6 +126,17 @@
     .send-btn{width:36px;height:36px;border-radius:50%;border:none;background:rgba(255,255,255,.08);
       color:var(--ink-f);cursor:pointer;display:grid;place-items:center;flex-shrink:0;transition:background .15s,color .15s}
     .send-btn.active{background:var(--cream);color:#4a0a18}
+    .upload-btn{width:32px;height:32px;border-radius:50%;border:none;background:transparent;
+      color:var(--ink-f);cursor:pointer;display:grid;place-items:center;flex-shrink:0;transition:color .15s}
+    .upload-btn:hover{color:var(--ink-m)}
+    .pending-images{display:flex;flex-wrap:wrap;gap:8px;padding:0 4px 4px}
+    .pending-img-wrap{position:relative}
+    .pending-img{width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid var(--line-s);display:block}
+    .pending-img-remove{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;
+      background:var(--bg-2);border:1px solid var(--line-s);color:var(--ink);
+      display:grid;place-items:center;cursor:pointer;font-size:10px;line-height:1}
+    .bubble-img{width:180px;height:180px;object-fit:cover;border-radius:12px;display:block;margin-bottom:6px}
+    .bubble-img-grid{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
     .bubble-row{display:flex;align-items:flex-end;gap:10px}
     .bubble-row.user{flex-direction:row-reverse}
     .bubble{border-radius:18px;padding:13px 17px;line-height:1.55;border:1px solid var(--line-s);font-size:14px}
@@ -487,26 +498,69 @@ function HomePage({ setPage }) {
   );
 }
 
+/* ── Camera / upload icon ─────────────────────────────────── */
+function CameraIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+      <circle cx="12" cy="13" r="4"/>
+    </svg>
+  );
+}
+
 /* ══════════════════════════════════════════════════════════════
    CHAT PAGE
 ══════════════════════════════════════════════════════════════ */
+const AI_PHOTO_RESPONSES = [
+  "I can see your skin in the photo! It looks like you have some dryness around the T-zone. I'd suggest adding a hydrating toner like COSRX Full Fit Propolis Synergy Toner before your moisturiser. Are you currently using any actives in your routine?",
+  "Thanks for sharing that! From what I can see, your skin barrier looks a little compromised — there's some mild redness around the cheeks. I'd ease off any exfoliants for a week and focus on ceramide-based products. How often are you exfoliating currently?",
+  "Great photo! Your skin texture is looking pretty smooth overall. I notice a little congestion around the nose — that's usually excess sebum. A BHA like salicylic acid 2–3x a week could really help with that. Are you cleansing in the morning?",
+  "I can see this product clearly — that looks like a vitamin C serum! Vitamin C is fantastic for brightening and protection, but make sure you're storing it away from light and heat as it oxidises quickly. What's your current morning routine like?",
+];
+
 function ChatPage() {
   const [messages, setMessages] = useState([
-    { role:'ai', text:"Hi! I'm your skin concierge. Ask me anything about your routine, ingredients, or skin concerns ✨" }
+    { role:'ai', text:"Hi! I'm your skin concierge. Ask me anything about your routine, ingredients, or skin concerns — or upload a photo of your skin or a product for me to analyse ✨" }
   ]);
   const [input, setInput] = useState('');
+  const [pendingImages, setPendingImages] = useState([]); // [{url, file}]
   const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior:'smooth' }); }, [messages]);
 
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setPendingImages(imgs => [...imgs, { url: ev.target.result, name: file.name }]);
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  const removeImage = (idx) => setPendingImages(imgs => imgs.filter((_, i) => i !== idx));
+
+  const canSend = input.trim() || pendingImages.length > 0;
+
   const send = () => {
-    if (!input.trim()) return;
+    if (!canSend) return;
     const userMsg = input.trim();
+    const imgs = [...pendingImages];
     setInput('');
-    setMessages(m => [...m, { role:'user', text:userMsg }]);
+    setPendingImages([]);
+    setMessages(m => [...m, { role:'user', text:userMsg, images:imgs }]);
+
+    // AI response — photo-aware
+    const hasPhoto = imgs.length > 0;
     setTimeout(() => {
-      setMessages(m => [...m, { role:'ai', text:"I'd love to help with that! The AI concierge will be fully available once the app is deployed. In the meantime, feel free to explore your routines and stash 💫" }]);
-    }, 800);
+      const reply = hasPhoto
+        ? AI_PHOTO_RESPONSES[Math.floor(Math.random() * AI_PHOTO_RESPONSES.length)]
+        : "I'd love to help with that! The full AI concierge will be live once the app is deployed. Feel free to upload a photo of your skin or a product and I'll give you my best analysis ✨";
+      setMessages(m => [...m, { role:'ai', text:reply }]);
+    }, hasPhoto ? 1200 : 700);
   };
 
   return (
@@ -526,18 +580,57 @@ function ChatPage() {
         {messages.map((m, i) => (
           <div key={i} className={`bubble-row ${m.role}`}>
             {m.role === 'ai' && <div className="bubble-avatar">✨</div>}
-            <div className={`bubble ${m.role}`} style={{ maxWidth:'72%' }}>{m.text}</div>
+            <div className={`bubble ${m.role}`} style={{ maxWidth:'72%' }}>
+              {m.images && m.images.length > 0 && (
+                <div className="bubble-img-grid">
+                  {m.images.map((img, j) => (
+                    <img key={j} src={img.url} className="bubble-img" alt="uploaded" />
+                  ))}
+                </div>
+              )}
+              {m.text && <div>{m.text}</div>}
+            </div>
           </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
 
       <div className="chat-footer">
+        {/* Pending image previews */}
+        {pendingImages.length > 0 && (
+          <div className="pending-images" style={{ marginBottom:8 }}>
+            {pendingImages.map((img, i) => (
+              <div key={i} className="pending-img-wrap">
+                <img src={img.url} className="pending-img" alt="pending" />
+                <button className="pending-img-remove" onClick={() => removeImage(i)}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="chat-form">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            style={{ display:'none' }}
+            onChange={handleFileChange}
+          />
+          {/* Upload button */}
+          <button
+            className="upload-btn"
+            onClick={() => fileInputRef.current?.click()}
+            title="Upload a photo for AI analysis"
+          >
+            <CameraIcon />
+          </button>
+
           <input className="chat-input" placeholder="Ask about your skin, routine, or products…"
             value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), send())} />
-          <button className={`send-btn ${input.trim()?'active':''}`} onClick={send}><SendIcon /></button>
+          <button className={`send-btn ${canSend?'active':''}`} onClick={send}><SendIcon /></button>
         </div>
         <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.2em', textTransform:'uppercase', color:'var(--ink-f)', textAlign:'center', marginTop:8 }}>
           POWERED BY CLAUDE
@@ -656,12 +749,17 @@ function StashPage() {
 
       {/* Modal */}
       {showModal && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:500, padding:24 }}
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', backdropFilter:'blur(8px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:500, padding:24 }}
           onClick={e => e.target === e.currentTarget && setShowModal(false)}>
-          <div className="card" style={{ width:'100%', maxWidth:440, padding:24 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <div className="serif" style={{ fontSize:20, fontWeight:600 }}>Add Product</div>
-              <button onClick={() => setShowModal(false)} style={{ background:'none', border:'none', color:'var(--ink-m)', cursor:'pointer', fontSize:20 }}>✕</button>
+          <div style={{
+            width:'100%', maxWidth:440, padding:28,
+            background:'linear-gradient(160deg, #3d0a16 0%, #2e0810 100%)',
+            border:'1px solid var(--line-s)', borderRadius:24,
+            boxShadow:'0 32px 80px -16px rgba(0,0,0,.8)',
+          }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:22 }}>
+              <div className="serif" style={{ fontSize:22, fontWeight:600 }}>Add Product</div>
+              <button onClick={() => setShowModal(false)} style={{ background:'rgba(255,255,255,.07)', border:'1px solid var(--line)', borderRadius:'50%', width:30, height:30, display:'grid', placeItems:'center', color:'var(--ink-m)', cursor:'pointer', fontSize:14 }}>✕</button>
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               <input className="gn-input" placeholder="Product name *" value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} />
@@ -669,16 +767,16 @@ function StashPage() {
               <input className="gn-input" placeholder="Category (e.g. Serum, Moisturiser)" value={form.category} onChange={e => setForm(f => ({...f, category:e.target.value}))} />
               <textarea className="gn-input" placeholder="Your review…" value={form.review} onChange={e => setForm(f => ({...f, review:e.target.value}))} />
               <div>
-                <div style={{ fontSize:12, color:'var(--ink-m)', marginBottom:8, letterSpacing:'0.5px', textTransform:'uppercase', fontFamily:"'Geist Mono',monospace" }}>RATING</div>
+                <div style={{ fontSize:11, color:'var(--ink-m)', marginBottom:8, letterSpacing:'0.18em', textTransform:'uppercase', fontFamily:"'Geist Mono',monospace" }}>RATING</div>
                 <div style={{ display:'flex', gap:6 }}>
                   {[1,2,3,4,5].map(n => (
                     <button key={n} onClick={() => setForm(f => ({...f, rating:n}))}
-                      style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, color: n <= form.rating ? 'var(--gold)' : 'rgba(255,255,255,.2)' }}>★</button>
+                      style={{ background:'none', border:'none', cursor:'pointer', fontSize:24, color: n <= form.rating ? 'var(--gold)' : 'rgba(255,255,255,.15)', transition:'color .15s' }}>★</button>
                   ))}
                 </div>
               </div>
             </div>
-            <div style={{ display:'flex', gap:10, marginTop:20 }}>
+            <div style={{ display:'flex', gap:10, marginTop:22 }}>
               <button className="btn-ghost" style={{ flex:1, justifyContent:'center' }} onClick={() => setShowModal(false)}>Cancel</button>
               <button className="btn-cream" style={{ flex:1, justifyContent:'center' }} onClick={add}>Add to Stash</button>
             </div>
@@ -754,19 +852,24 @@ function WishlistPage() {
       )}
 
       {showModal && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:500, padding:24 }}
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', backdropFilter:'blur(8px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:500, padding:24 }}
           onClick={e => e.target === e.currentTarget && setShowModal(false)}>
-          <div className="card" style={{ width:'100%', maxWidth:400, padding:24 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <div className="serif" style={{ fontSize:20, fontWeight:600 }}>Add to Wishlist</div>
-              <button onClick={() => setShowModal(false)} style={{ background:'none', border:'none', color:'var(--ink-m)', cursor:'pointer', fontSize:20 }}>✕</button>
+          <div style={{
+            width:'100%', maxWidth:400, padding:28,
+            background:'linear-gradient(160deg, #3d0a16 0%, #2e0810 100%)',
+            border:'1px solid var(--line-s)', borderRadius:24,
+            boxShadow:'0 32px 80px -16px rgba(0,0,0,.8)',
+          }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:22 }}>
+              <div className="serif" style={{ fontSize:22, fontWeight:600 }}>Add to Wishlist</div>
+              <button onClick={() => setShowModal(false)} style={{ background:'rgba(255,255,255,.07)', border:'1px solid var(--line)', borderRadius:'50%', width:30, height:30, display:'grid', placeItems:'center', color:'var(--ink-m)', cursor:'pointer', fontSize:14 }}>✕</button>
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               <input className="gn-input" placeholder="Product name *" value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} />
               <input className="gn-input" placeholder="Brand" value={form.brand} onChange={e => setForm(f => ({...f, brand:e.target.value}))} />
               <input className="gn-input" placeholder="Notes (optional)" value={form.notes} onChange={e => setForm(f => ({...f, notes:e.target.value}))} />
             </div>
-            <div style={{ display:'flex', gap:10, marginTop:20 }}>
+            <div style={{ display:'flex', gap:10, marginTop:22 }}>
               <button className="btn-ghost" style={{ flex:1, justifyContent:'center' }} onClick={() => setShowModal(false)}>Cancel</button>
               <button className="btn-cream" style={{ flex:1, justifyContent:'center' }} onClick={add}>Add Item</button>
             </div>
