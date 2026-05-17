@@ -180,6 +180,28 @@
     .stars{display:flex;gap:3px;color:var(--gold);font-size:13px}
 
     /* ── Responsive ─────────────────────────────────────────── */
+    /* ── Voice button ───────────────────────────────────────── */
+    .voice-btn{width:36px;height:36px;border-radius:50%;border:1px solid var(--line-s);
+      background:rgba(255,255,255,.05);color:var(--ink-m);cursor:pointer;
+      display:grid;place-items:center;flex-shrink:0;transition:all .2s}
+    .voice-btn:hover{background:rgba(255,255,255,.09);color:var(--ink)}
+    .voice-btn.connecting{border-color:var(--gold);color:var(--gold);animation:pulse 1s ease-in-out infinite}
+    .voice-btn.listening{border-color:var(--rose);color:var(--rose);background:rgba(255,154,169,.1);animation:pulse .8s ease-in-out infinite}
+    .voice-btn.speaking{border-color:var(--cream);color:var(--cream);background:rgba(251,225,214,.1)}
+    @keyframes pulse{0%,100%{box-shadow:0 0 0 0 currentColor}50%{box-shadow:0 0 0 5px transparent}}
+
+    /* ── Config note ────────────────────────────────────────── */
+    .config-note{display:flex;align-items:center;gap:10px;padding:10px 14px;
+      background:rgba(244,201,93,.07);border:1px solid rgba(244,201,93,.2);
+      border-radius:10px;font-size:12px;color:var(--gold);margin-bottom:14px}
+
+    /* ── Typing dots ─────────────────────────────────────────  */
+    .typing-dot{width:5px;height:5px;border-radius:50%;background:var(--ink-f);
+      animation:dotPulse 1.2s ease-in-out infinite;display:inline-block;margin:0 2px}
+    .typing-dot:nth-child(2){animation-delay:.2s}
+    .typing-dot:nth-child(3){animation-delay:.4s}
+    @keyframes dotPulse{0%,80%,100%{transform:scale(1);opacity:.4}40%{transform:scale(1.4);opacity:1}}
+
     @media(max-width:768px){
       .sidebar{display:none}
       .mobile-bar{display:flex}
@@ -205,9 +227,148 @@
 
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
+
+/* ══════════════════════════════════════════════════════════════
+   ⚙️  CONFIG — paste your keys here
+   Supabase  → https://supabase.com  (free)  → Project Settings → API
+   Gemini    → https://aistudio.google.com   → Get API key
+══════════════════════════════════════════════════════════════ */
+const SUPABASE_URL      = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const GEMINI_API_KEY    = 'YOUR_GEMINI_API_KEY';
+/* ══════════════════════════════════════════════════════════════ */
+
+const CFG = {
+  supabase: SUPABASE_URL !== 'YOUR_SUPABASE_URL',
+  gemini:   GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY',
+};
+
+// Stable per-browser user ID (no auth yet)
+const USER_ID = (() => {
+  let id = localStorage.getItem('gn_uid');
+  if (!id) { id = crypto.randomUUID(); localStorage.setItem('gn_uid', id); }
+  return id;
+})();
+
+// Supabase client
+const sb = CFG.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+/* ── Gemini Flash (text + vision) ─────────────────────────── */
+async function geminiAsk(userText, imageDataUrl = null) {
+  const parts = [];
+  const systemPrompt = 'You are Glow, a warm and knowledgeable personal skin concierge. Keep responses concise (2–4 sentences max). Give practical, specific skincare advice. When analysing photos, describe what you see in the skin or product and give actionable advice.';
+  if (userText) parts.push({ text: userText });
+  if (imageDataUrl) {
+    const [meta, b64] = imageDataUrl.split(',');
+    const mimeType = meta.match(/:(.*?);/)[1];
+    parts.push({ inline_data: { mime_type: mimeType, data: b64 } });
+  }
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        system_instruction: { parts:[{ text: systemPrompt }] },
+        contents: [{ role:'user', parts }],
+        generationConfig: { maxOutputTokens: 300 },
+      }) }
+  );
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? 'Sorry, something went wrong.';
+}
+
+/* ── Gemini Live API (real-time voice) ────────────────────── */
+class GeminiLive {
+  constructor({ onText, onStatus }) {
+    this.onText   = onText;
+    this.onStatus = onStatus;
+    this.ws = null; this.audioCtx = null; this.outputCtx = null;
+    this.source = null; this.processor = null; this.stream = null;
+  }
+
+  async start() {
+    this.onStatus('connecting');
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+    } catch(e) {
+      this.onStatus('error:mic'); return;
+    }
+    const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${GEMINI_API_KEY}`;
+    this.ws = new WebSocket(url);
+
+    this.ws.onopen = () => {
+      this.ws.send(JSON.stringify({ setup: {
+        model: 'models/gemini-3.1-flash-live-preview',
+        generation_config: {
+          response_modalities: ['AUDIO','TEXT'],
+          speech_config: { voice_config: { prebuilt_voice_config: { voice_name:'Aoede' } } },
+        },
+        system_instruction: { parts:[{ text:'You are Glow, a warm skin concierge. Be concise, practical, friendly.' }] },
+      }}));
+    };
+
+    this.ws.onmessage = async (evt) => {
+      const msg = JSON.parse(evt.data);
+      if (msg.setupComplete) { this.onStatus('listening'); this._startCapture(); }
+      if (msg.serverContent) {
+        const parts = msg.serverContent.modelTurn?.parts ?? [];
+        for (const p of parts) {
+          if (p.text) this.onText(p.text);
+          if (p.inlineData?.data) await this._play(p.inlineData.data);
+        }
+        if (msg.serverContent.turnComplete) this.onStatus('listening');
+      }
+    };
+
+    this.ws.onerror = () => { this.onStatus('error:ws'); this.stop(); };
+    this.ws.onclose = () => { if (this.ws) this.onStatus('idle'); };
+  }
+
+  _startCapture() {
+    this.audioCtx = new AudioContext({ sampleRate:16000 });
+    this.source = this.audioCtx.createMediaStreamSource(this.stream);
+    this.processor = this.audioCtx.createScriptProcessor(4096, 1, 1);
+    this.processor.onaudioprocess = (e) => {
+      if (this.ws?.readyState !== WebSocket.OPEN) return;
+      const f32 = e.inputBuffer.getChannelData(0);
+      const i16 = new Int16Array(f32.length);
+      for (let i=0; i<f32.length; i++) i16[i] = Math.max(-32768, Math.min(32767, f32[i]*32768));
+      const b64 = btoa(String.fromCharCode(...new Uint8Array(i16.buffer)));
+      this.ws.send(JSON.stringify({ realtime_input:{ media_chunks:[{ mime_type:'audio/pcm;rate=16000', data:b64 }] } }));
+    };
+    this.source.connect(this.processor);
+    this.processor.connect(this.audioCtx.destination);
+  }
+
+  async _play(b64) {
+    this.onStatus('speaking');
+    if (!this.outputCtx) this.outputCtx = new AudioContext({ sampleRate:24000 });
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i=0; i<bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const i16 = new Int16Array(bytes.buffer);
+    const f32 = new Float32Array(i16.length);
+    for (let i=0; i<i16.length; i++) f32[i] = i16[i]/32768;
+    const buf = this.outputCtx.createBuffer(1, f32.length, 24000);
+    buf.getChannelData(0).set(f32);
+    const src = this.outputCtx.createBufferSource();
+    src.buffer = buf; src.connect(this.outputCtx.destination); src.start();
+    await new Promise(r => src.onended = r);
+    this.onStatus('listening');
+  }
+
+  stop() {
+    this.ws?.close(); this.ws = null;
+    this.processor?.disconnect(); this.source?.disconnect();
+    this.audioCtx?.close(); this.outputCtx?.close();
+    this.stream?.getTracks().forEach(t => t.stop());
+    this.onStatus('idle');
+  }
+}
 
 /* ── Data — starts empty, user builds their own ───────────── */
 const MOCK_PRODUCTS = [];
@@ -499,94 +660,160 @@ function CameraIcon() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   CHAT PAGE
+   CHAT PAGE — Gemini Flash + Live API voice
 ══════════════════════════════════════════════════════════════ */
-const AI_PHOTO_RESPONSES = [
-  "I can see your skin in the photo! It looks like you have some dryness around the T-zone. I'd suggest adding a hydrating toner like COSRX Full Fit Propolis Synergy Toner before your moisturiser. Are you currently using any actives in your routine?",
-  "Thanks for sharing that! From what I can see, your skin barrier looks a little compromised — there's some mild redness around the cheeks. I'd ease off any exfoliants for a week and focus on ceramide-based products. How often are you exfoliating currently?",
-  "Great photo! Your skin texture is looking pretty smooth overall. I notice a little congestion around the nose — that's usually excess sebum. A BHA like salicylic acid 2–3x a week could really help with that. Are you cleansing in the morning?",
-  "I can see this product clearly — that looks like a vitamin C serum! Vitamin C is fantastic for brightening and protection, but make sure you're storing it away from light and heat as it oxidises quickly. What's your current morning routine like?",
-];
+function MicIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10a7 7 0 0 1-14 0M12 19v3M8 22h8"/></svg>;
+}
+function StopIcon() {
+  return <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>;
+}
 
 function ChatPage() {
   const [messages, setMessages] = useState([
-    { role:'ai', text:"Hi! I'm your skin concierge. Ask me anything about your routine, ingredients, or skin concerns — or upload a photo of your skin or a product for me to analyse ✨" }
+    { role:'ai', text:"Hi! I'm Glow, your skin concierge ✨ Ask me anything, or upload a photo of your skin or a product and I'll analyse it for you." }
   ]);
-  const [input, setInput] = useState('');
-  const [pendingImages, setPendingImages] = useState([]); // [{url, file}]
+  const [input, setInput]               = useState('');
+  const [pendingImages, setPendingImages] = useState([]);
+  const [loading, setLoading]           = useState(false);
+  const [voiceStatus, setVoiceStatus]   = useState('idle'); // idle|connecting|listening|speaking|error:*
   const messagesEndRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const fileInputRef   = useRef(null);
+  const liveRef        = useRef(null);
+  const voiceTranscriptRef = useRef('');
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior:'smooth' }); }, [messages]);
 
+  // ── File upload ─────────────────────────────────────────────
   const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    files.forEach(file => {
+    Array.from(e.target.files).forEach(file => {
       const reader = new FileReader();
-      reader.onload = (ev) => {
-        setPendingImages(imgs => [...imgs, { url: ev.target.result, name: file.name }]);
-      };
+      reader.onload = (ev) => setPendingImages(imgs => [...imgs, { url:ev.target.result }]);
       reader.readAsDataURL(file);
     });
     e.target.value = '';
   };
+  const removeImage = (idx) => setPendingImages(imgs => imgs.filter((_,i) => i !== idx));
 
-  const removeImage = (idx) => setPendingImages(imgs => imgs.filter((_, i) => i !== idx));
+  // ── Send (text + optional photo → Gemini Flash) ─────────────
+  const canSend = (input.trim() || pendingImages.length > 0) && !loading;
 
-  const canSend = input.trim() || pendingImages.length > 0;
-
-  const send = () => {
+  const send = async () => {
     if (!canSend) return;
-    const userMsg = input.trim();
-    const imgs = [...pendingImages];
-    setInput('');
-    setPendingImages([]);
-    setMessages(m => [...m, { role:'user', text:userMsg, images:imgs }]);
+    const userText = input.trim();
+    const imgs     = [...pendingImages];
+    setInput(''); setPendingImages([]); setLoading(true);
 
-    // AI response — photo-aware
-    const hasPhoto = imgs.length > 0;
-    setTimeout(() => {
-      const reply = hasPhoto
-        ? AI_PHOTO_RESPONSES[Math.floor(Math.random() * AI_PHOTO_RESPONSES.length)]
-        : "I'd love to help with that! The full AI concierge will be live once the app is deployed. Feel free to upload a photo of your skin or a product and I'll give you my best analysis ✨";
-      setMessages(m => [...m, { role:'ai', text:reply }]);
-    }, hasPhoto ? 1200 : 700);
+    setMessages(m => [...m, { role:'user', text:userText, images:imgs }]);
+    setMessages(m => [...m, { role:'ai', typing:true }]);
+
+    try {
+      let reply;
+      if (CFG.gemini) {
+        reply = await geminiAsk(
+          userText || 'Please analyse this image.',
+          imgs[0]?.url ?? null
+        );
+      } else {
+        await new Promise(r => setTimeout(r, 800));
+        reply = imgs.length
+          ? "Looking at your photo — your skin looks like it could use some extra hydration around the cheeks. Add a ceramide moisturiser after your serum. (Configure GEMINI_API_KEY for real AI analysis ✨)"
+          : "I'd love to help! Add your GEMINI_API_KEY in the config section at the top of app.html to enable real AI responses. ✨";
+      }
+      setMessages(m => m.filter(x => !x.typing).concat({ role:'ai', text:reply }));
+    } catch(e) {
+      setMessages(m => m.filter(x => !x.typing).concat({ role:'ai', text:`Sorry, something went wrong: ${e.message}` }));
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // ── Voice (Gemini Live API) ──────────────────────────────────
+  const voiceActive = voiceStatus !== 'idle' && !voiceStatus.startsWith('error');
+
+  const toggleVoice = async () => {
+    if (voiceActive) {
+      liveRef.current?.stop(); liveRef.current = null;
+      if (voiceTranscriptRef.current.trim()) {
+        setMessages(m => [...m, { role:'ai', text: voiceTranscriptRef.current.trim() }]);
+        voiceTranscriptRef.current = '';
+      }
+      return;
+    }
+    if (!CFG.gemini) {
+      setMessages(m => [...m, { role:'ai', text:'Add your GEMINI_API_KEY to enable voice mode 🎙️' }]);
+      return;
+    }
+    voiceTranscriptRef.current = '';
+    liveRef.current = new GeminiLive({
+      onStatus: setVoiceStatus,
+      onText: (t) => {
+        voiceTranscriptRef.current += t;
+        setMessages(m => {
+          const last = m[m.length-1];
+          if (last?.role === 'ai' && last.voice) return [...m.slice(0,-1), { role:'ai', text: voiceTranscriptRef.current, voice:true }];
+          return [...m, { role:'ai', text: voiceTranscriptRef.current, voice:true }];
+        });
+      },
+    });
+    await liveRef.current.start();
+  };
+
+  const voiceLabel = { idle:'Voice', connecting:'Connecting…', listening:'Listening…', speaking:'Speaking…', 'error:mic':'Mic denied', 'error:ws':'Connection error' };
+  const voiceColor = { listening:'var(--rose)', speaking:'var(--cream)', connecting:'var(--gold)' };
 
   return (
     <div className="chat-root">
+      {/* Header */}
       <div className="chat-header">
         <div style={{ width:44, height:44, borderRadius:'50%', background:'rgba(244,201,93,.12)', border:'1px solid rgba(244,201,93,.28)', display:'grid', placeItems:'center', fontSize:20, flexShrink:0 }}>✨</div>
         <div>
           <div className="serif" style={{ fontSize:22, fontWeight:600 }}>Skin Concierge</div>
-          <div style={{ fontSize:12, color:'var(--ink-m)', marginTop:1 }}>Powered by Claude · Your personal skin advisor</div>
+          <div style={{ fontSize:12, color:'var(--ink-m)', marginTop:1 }}>
+            {CFG.gemini ? 'Powered by Gemini · Your personal skin advisor' : 'Demo mode — add Gemini API key for live AI'}
+          </div>
         </div>
-        <div style={{ marginLeft:'auto', fontFamily:"'Geist Mono',monospace", fontSize:11, color:'var(--ink-f)', display:'flex', alignItems:'center', gap:6 }}>
-          <div style={{ width:6, height:6, borderRadius:'50%', background:'#7ad888' }} /> ONLINE
+        <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:8 }}>
+          {voiceActive && (
+            <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color: voiceColor[voiceStatus] ?? 'var(--ink-f)', display:'flex', alignItems:'center', gap:5 }}>
+              <div style={{ width:6, height:6, borderRadius:'50%', background:'currentColor', animation:'pulse .8s infinite' }} />
+              {voiceLabel[voiceStatus]}
+            </div>
+          )}
+          <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'var(--ink-f)', display:'flex', alignItems:'center', gap:5 }}>
+            <div style={{ width:6, height:6, borderRadius:'50%', background:'#7ad888' }} /> ONLINE
+          </div>
         </div>
       </div>
 
+      {/* Messages */}
       <div className="chat-messages">
         {messages.map((m, i) => (
           <div key={i} className={`bubble-row ${m.role}`}>
-            {m.role === 'ai' && <div className="bubble-avatar">✨</div>}
+            {m.role === 'ai' && (
+              <div className="bubble-avatar" style={{ background: m.voice ? 'rgba(255,154,169,.12)' : undefined }}>
+                {m.voice ? '🎙️' : '✨'}
+              </div>
+            )}
             <div className={`bubble ${m.role}`} style={{ maxWidth:'72%' }}>
-              {m.images && m.images.length > 0 && (
+              {m.images?.length > 0 && (
                 <div className="bubble-img-grid">
-                  {m.images.map((img, j) => (
-                    <img key={j} src={img.url} className="bubble-img" alt="uploaded" />
-                  ))}
+                  {m.images.map((img, j) => <img key={j} src={img.url} className="bubble-img" alt="uploaded" />)}
                 </div>
               )}
-              {m.text && <div>{m.text}</div>}
+              {m.typing
+                ? <span style={{ display:'flex', alignItems:'center', gap:4, color:'var(--ink-m)', fontStyle:'italic', fontSize:13 }}>
+                    Thinking<span className="typing-dot"/><span className="typing-dot"/><span className="typing-dot"/>
+                  </span>
+                : m.text && <div style={{ whiteSpace:'pre-wrap' }}>{m.text}</div>}
             </div>
           </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Footer */}
       <div className="chat-footer">
-        {/* Pending image previews */}
         {pendingImages.length > 0 && (
           <div className="pending-images" style={{ marginBottom:8 }}>
             {pendingImages.map((img, i) => (
@@ -599,31 +826,36 @@ function ChatPage() {
         )}
 
         <div className="chat-form">
-          {/* Hidden file input */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            style={{ display:'none' }}
-            onChange={handleFileChange}
-          />
-          {/* Upload button */}
-          <button
-            className="upload-btn"
-            onClick={() => fileInputRef.current?.click()}
-            title="Upload a photo for AI analysis"
-          >
+          <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display:'none' }} onChange={handleFileChange} />
+
+          {/* Camera */}
+          <button className="upload-btn" onClick={() => fileInputRef.current?.click()} title="Upload photo for AI analysis">
             <CameraIcon />
           </button>
 
-          <input className="chat-input" placeholder="Ask about your skin, routine, or products…"
-            value={input} onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), send())} />
-          <button className={`send-btn ${canSend?'active':''}`} onClick={send}><SendIcon /></button>
+          <input className="chat-input"
+            placeholder={voiceActive ? 'Voice mode active — speak to Glow…' : 'Ask about your skin, routine, or products…'}
+            value={input} disabled={voiceActive}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key==='Enter' && !e.shiftKey && (e.preventDefault(), send())} />
+
+          {/* Voice button */}
+          <button
+            className={`voice-btn ${voiceStatus}`}
+            onClick={toggleVoice}
+            title={voiceActive ? 'Stop voice' : 'Start voice chat'}
+          >
+            {voiceActive ? <StopIcon /> : <MicIcon />}
+          </button>
+
+          {/* Send */}
+          <button className={`send-btn ${canSend?'active':''}`} onClick={send} disabled={loading}>
+            <SendIcon />
+          </button>
         </div>
+
         <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.2em', textTransform:'uppercase', color:'var(--ink-f)', textAlign:'center', marginTop:8 }}>
-          POWERED BY CLAUDE
+          POWERED BY GEMINI
         </div>
       </div>
     </div>
@@ -685,24 +917,58 @@ function RoutinesPage() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   STASH PAGE
+   STASH PAGE — Supabase backed
 ══════════════════════════════════════════════════════════════ */
+const SWATCH_COLORS = ['#b5d4e0','#c8dbb5','#e0c9a6','#d9bfce','#c4a8c0','#b5c8e0','#e0b5c8','#c8e0b5'];
+
 function StashPage() {
-  const [products, setProducts] = useState(MOCK_PRODUCTS);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading]   = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name:'', brand:'', category:'', rating:5, review:'' });
 
-  const add = () => {
+  // Load from Supabase or localStorage
+  useEffect(() => {
+    const load = async () => {
+      if (sb) {
+        const { data } = await sb.from('products').select('*').eq('user_id', USER_ID).order('created_at', { ascending:false });
+        setProducts(data ?? []);
+      } else {
+        setProducts(JSON.parse(localStorage.getItem('gn_products') || '[]'));
+      }
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const save = (list) => {
+    setProducts(list);
+    if (!sb) localStorage.setItem('gn_products', JSON.stringify(list));
+  };
+
+  const add = async () => {
     if (!form.name.trim()) return;
-    setProducts(p => [...p, { ...form, id: Date.now(), color:'#c4a8c0' }]);
+    const color = SWATCH_COLORS[Math.floor(Math.random()*SWATCH_COLORS.length)];
+    if (sb) {
+      const { data } = await sb.from('products').insert([{ ...form, user_id:USER_ID, color }]).select().single();
+      if (data) setProducts(p => [data, ...p]);
+    } else {
+      save([{ ...form, id:Date.now().toString(), color, created_at:new Date().toISOString() }, ...products]);
+    }
     setForm({ name:'', brand:'', category:'', rating:5, review:'' });
     setShowModal(false);
   };
 
-  const del = (id) => setProducts(p => p.filter(x => x.id !== id));
+  const del = async (id) => {
+    if (sb) await sb.from('products').delete().eq('id', id).eq('user_id', USER_ID);
+    save(products.filter(x => x.id !== id));
+  };
 
   return (
     <div className="fade-in" style={{ maxWidth:1000 }}>
+      {!CFG.supabase && (
+        <div className="config-note">⚙️ Using local storage — add SUPABASE_URL + SUPABASE_ANON_KEY to sync across devices</div>
+      )}
       <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', marginBottom:22, flexWrap:'wrap', gap:10 }}>
         <div>
           <h1 className="serif page-title" style={{ fontSize:38, fontWeight:600, letterSpacing:'-0.02em' }}>My Stash</h1>
@@ -713,7 +979,9 @@ function StashPage() {
         </button>
       </div>
 
-      {products.length === 0 ? (
+      {loading ? (
+        <div style={{ textAlign:'center', padding:60, color:'var(--ink-f)' }}>Loading…</div>
+      ) : products.length === 0 ? (
         <div className="card" style={{ textAlign:'center', padding:'60px 24px' }}>
           <div style={{ fontSize:13, color:'var(--ink-f)' }}>No products yet. Add your first one!</div>
         </div>
@@ -778,28 +1046,64 @@ function StashPage() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   WISHLIST PAGE
+   WISHLIST PAGE — Supabase backed
 ══════════════════════════════════════════════════════════════ */
 function WishlistPage() {
-  const [items, setItems] = useState(MOCK_WISHLIST);
+  const [items, setItems]       = useState([]);
+  const [loading, setLoading]   = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ name:'', brand:'', notes:'' });
+  const [form, setForm]         = useState({ name:'', brand:'', notes:'' });
 
-  const add = () => {
+  useEffect(() => {
+    const load = async () => {
+      if (sb) {
+        const { data } = await sb.from('wishlist').select('*').eq('user_id', USER_ID).order('created_at', { ascending:false });
+        setItems(data ?? []);
+      } else {
+        setItems(JSON.parse(localStorage.getItem('gn_wishlist') || '[]'));
+      }
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const save = (list) => {
+    setItems(list);
+    if (!sb) localStorage.setItem('gn_wishlist', JSON.stringify(list));
+  };
+
+  const add = async () => {
     if (!form.name.trim()) return;
-    setItems(i => [...i, { ...form, id:Date.now(), status:'want', priority:'mid' }]);
+    if (sb) {
+      const { data } = await sb.from('wishlist').insert([{ ...form, user_id:USER_ID, status:'want' }]).select().single();
+      if (data) setItems(i => [data, ...i]);
+    } else {
+      save([{ ...form, id:Date.now().toString(), status:'want', created_at:new Date().toISOString() }, ...items]);
+    }
     setForm({ name:'', brand:'', notes:'' });
     setShowModal(false);
   };
 
-  const toggleBought = (id) => setItems(i => i.map(x => x.id===id ? {...x, status:x.status==='want'?'bought':'want'} : x));
-  const del = (id) => setItems(i => i.filter(x => x.id !== id));
+  const toggleBought = async (id) => {
+    const item  = items.find(x => x.id===id);
+    const next  = item.status==='want' ? 'bought' : 'want';
+    if (sb) await sb.from('wishlist').update({ status:next }).eq('id', id).eq('user_id', USER_ID);
+    save(items.map(x => x.id===id ? {...x, status:next} : x));
+  };
+
+  const del = async (id) => {
+    if (sb) await sb.from('wishlist').delete().eq('id', id).eq('user_id', USER_ID);
+    save(items.filter(x => x.id !== id));
+  };
 
   const want   = items.filter(x => x.status==='want');
   const bought = items.filter(x => x.status==='bought');
 
   return (
     <div className="fade-in" style={{ maxWidth:760 }}>
+      {!CFG.supabase && (
+        <div className="config-note">⚙️ Using local storage — add SUPABASE_URL + SUPABASE_ANON_KEY to sync across devices</div>
+      )}
       <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', marginBottom:22, flexWrap:'wrap', gap:10 }}>
         <div>
           <h1 className="serif page-title" style={{ fontSize:38, fontWeight:600, letterSpacing:'-0.02em' }}>Wishlist</h1>
@@ -835,7 +1139,9 @@ function WishlistPage() {
         </div>
       ))}
 
-      {items.length === 0 && (
+      {loading ? (
+        <div style={{ textAlign:'center', padding:60, color:'var(--ink-f)' }}>Loading…</div>
+      ) : items.length === 0 && (
         <div className="card" style={{ textAlign:'center', padding:'60px 24px' }}>
           <div style={{ fontSize:13, color:'var(--ink-f)' }}>Your wishlist is empty. Add something to try!</div>
         </div>
