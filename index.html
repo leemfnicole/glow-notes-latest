@@ -422,7 +422,7 @@
     <a href="#how-it-works">How it works</a>
     <a href="app.html">Preview app</a>
     <button class="btn-nav btn-nav-ghost" onclick="openModal('login')">Sign in</button>
-    <button class="btn-nav btn-nav-cream" onclick="openModal('signup')">Get started</button>
+    <button class="btn-nav btn-nav-cream" onclick="openModal('signup')">Request invite</button>
   </div>
   <button class="mobile-menu-btn" onclick="openModal('signup')" aria-label="Sign up">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -436,22 +436,22 @@
   <div class="hero-inner">
     <div class="hero-eyebrow">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
-      Powered by Claude AI
+      Invite only · for friends
     </div>
     <h1 class="hero-title">
       Your skin deserves<br />a <em>personal</em> concierge
     </h1>
     <p class="hero-sub">
-      Track your routine, build your stash, and get AI-powered advice tailored to your skin — all in one beautiful app.
+      A private space to track your routine, build your stash, and get AI-powered skin advice — made for us, not the masses.
     </p>
     <div class="hero-actions">
       <button class="btn-primary" onclick="openModal('signup')">
-        Start for free
+        Request your invite
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </button>
       <a href="app.html" class="btn-secondary">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        See the app
+        Preview the app
       </a>
     </div>
     <div class="hero-social-proof">
@@ -461,7 +461,7 @@
         <div class="hero-avatar" style="background:linear-gradient(135deg,#e8d4b4,#c4a47a)">🌿</div>
         <div class="hero-avatar" style="background:linear-gradient(135deg,#d4b4e8,#a47ac4)">💫</div>
       </div>
-      <span>Join <strong style="color:var(--ink-m)">2,000+</strong> people building better skin routines</span>
+      <span>A small circle. Real routines. Good skin. 💕</span>
     </div>
   </div>
 </section>
@@ -610,9 +610,9 @@
     <div class="cta-inner">
       <div style="font-size:44px;margin-bottom:20px">🌸</div>
       <h2 class="cta-title">Ready to glow up<br />your routine?</h2>
-      <p class="cta-sub">Free forever for your personal use. No credit card required.</p>
+      <p class="cta-sub">Invite-only for now. Drop your email and we'll let you in. 💕</p>
       <button class="btn-primary" style="margin:0 auto" onclick="openModal('signup')">
-        Create your free account
+        Request an invite
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </button>
     </div>
@@ -870,6 +870,13 @@ function nextStep() {
 }
 
 function finishSignup() {
+  // Collect the email in the background
+  submitEmailToFormspree(
+    signupData.email,
+    `${signupData.firstName} ${signupData.lastName}`.trim(),
+    signupData.skinType,
+    signupData.concerns
+  );
   signupStep = 3;
   renderModal();
 }
@@ -942,6 +949,22 @@ function googleSignIn() {
   signupData.email = signupData.email || 'user@gmail.com';
   signupStep = 2;
   renderModal();
+}
+
+// ── Email collection (Formspree) ──────────────────────────────
+// Replace YOUR_FORM_ID below with your Formspree form ID
+// Create a free form at https://formspree.io → get an 8-char ID
+const FORMSPREE_ID = 'YOUR_FORM_ID';
+
+async function submitEmailToFormspree(email, name, skinType, concerns) {
+  if (!FORMSPREE_ID || FORMSPREE_ID === 'YOUR_FORM_ID') return; // skip if not configured
+  try {
+    await fetch(`https://formspree.io/f/${FORMSPREE_ID}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ email, name: name || '', skinType: skinType || '', concerns: concerns?.join(', ') || '' }),
+    });
+  } catch(e) { /* silent — don't block the user flow */ }
 }
 
 // ── Shake animation ───────────────────────────────────────────

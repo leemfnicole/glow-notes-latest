@@ -209,13 +209,8 @@
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
 
-/* ── Mock data ────────────────────────────────────────────── */
-const MOCK_PRODUCTS = [
-  { id:1, name:'Ceramidin Cream', brand:'Dr. Jart+', category:'Moisturiser', rating:5, review:'Holy grail barrier cream.', color:'#b5d4e0' },
-  { id:2, name:'Cicapair Tiger Grass', brand:'Dr. Jart+', category:'Serum', rating:4, review:'Great for redness.', color:'#c8dbb5' },
-  { id:3, name:'Peptide 21 Serum', brand:'Peter Thomas Roth', category:'Serum', rating:4, review:'Plumping overnight.', color:'#e0c9a6' },
-  { id:4, name:'Protini Polypeptide Cream', brand:'Drunk Elephant', category:'Moisturiser', rating:5, review:'Skin loves this.', color:'#d9bfce' },
-];
+/* ── Data — starts empty, user builds their own ───────────── */
+const MOCK_PRODUCTS = [];
 const MOCK_ROUTINE = [
   { id:1, name:'Gentle Cleanser', desc:'Double cleanse — oil first, then foam', duration:'2 min' },
   { id:2, name:'Toner / Essence', desc:'Pat in 3 layers for deep hydration', duration:'1 min' },
@@ -224,12 +219,7 @@ const MOCK_ROUTINE = [
   { id:5, name:'Moisturiser', desc:'Lock in all the layers below', duration:'1 min' },
   { id:6, name:'SPF 50+', desc:'Last step, every single morning', duration:'1 min' },
 ];
-const MOCK_WISHLIST = [
-  { id:1, name:'La Mer Crème', brand:'La Mer', status:'want', priority:'high', notes:'For winter dryness' },
-  { id:2, name:'Tatcha Dewy Skin Cream', brand:'Tatcha', status:'want', priority:'mid', notes:'' },
-  { id:3, name:'Laneige Water Sleeping Mask', brand:'Laneige', status:'bought', priority:'mid', notes:'Already amazing' },
-  { id:4, name:'Summer Fridays Jet Lag Mask', brand:'Summer Fridays', status:'bought', priority:'low', notes:'' },
-];
+const MOCK_WISHLIST = [];
 const SKIN_TYPES = ['Normal','Oily','Dry','Combination','Sensitive'];
 const DAYS = ['M','T','W','T','F','S','S'];
 
@@ -477,7 +467,7 @@ function HomePage({ setPage }) {
 
       <div className="grid-quick" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:18 }}>
         <QuickCard icon={<ChatIcon />}     title="Skin Concierge"  sub="Chat with your AI advisor"            onClick={() => setPage('chat')} />
-        <QuickCard icon={<StashIcon />}    title="My Stash"        sub={`${MOCK_PRODUCTS.length} products tracked`} onClick={() => setPage('stash')} />
+        <QuickCard icon={<StashIcon />}    title="My Stash"        sub="Track your products" onClick={() => setPage('stash')} />
         <QuickCard icon={<WishlistIcon />} title="Wishlist"        sub="Products to try"                       onClick={() => setPage('wishlist')} />
         <QuickCard icon={<ProfileIcon />}  title="Profile"         sub="Your skin settings"                    onClick={() => setPage('profile')} />
       </div>
@@ -938,9 +928,9 @@ function ProfilePage() {
         <div className="eyebrow" style={{ marginBottom:14 }}>YOUR STATS</div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14 }}>
           {[
-            { label:'Products', value: MOCK_PRODUCTS.length },
-            { label:'Wishlist',  value: MOCK_WISHLIST.length },
-            { label:'Day Streak', value: '4 🔥' },
+            { label:'Products', value: 0 },
+            { label:'Wishlist',  value: 0 },
+            { label:'Day Streak', value: '0 🌱' },
           ].map(({ label, value }) => (
             <div key={label} style={{ textAlign:'center', padding:'14px 8px', background:'rgba(255,255,255,.03)', borderRadius:12, border:'1px solid var(--line)' }}>
               <div className="serif" style={{ fontSize:26, fontWeight:600, lineHeight:1 }}>{value}</div>
